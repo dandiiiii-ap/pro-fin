@@ -195,7 +195,16 @@ export default function PhaseTransitionModal({ isOpen, onClose, onConfirm, fromS
         e.preventDefault();
         // Validate required fields
         for (const field of fields) {
-            if (field.required) {
+            let isFieldRequired = field.required;
+            if (field.type === 'vendor_select') {
+                const amountStr = formData[field.amountField] || '';
+                const amountNum = parseInt(amountStr.toString().replace(/[^0-9]/g, ''), 10) || 0;
+                if (amountNum < 10000000) {
+                    isFieldRequired = false;
+                }
+            }
+
+            if (isFieldRequired) {
                 if (field.type === 'multi_bill') {
                     const bills = formData.bills || [];
                     if (bills.length === 0) {
@@ -289,288 +298,299 @@ export default function PhaseTransitionModal({ isOpen, onClose, onConfirm, fromS
                 {/* Form */}
                 <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 custom-scrollbar">
                     <div className="space-y-4">
-                        {fields.map(field => (
-                            <div key={field.name}>
-                                {field.type !== 'checkbox' && (
-                                    <label className={labelClass}>{field.label}{field.required && <span className="text-red-500 ml-1">*</span>}</label>
-                                )}
-                                {field.type === 'text' && (
-                                    <input
-                                        type="text"
-                                        className={inputClass}
-                                        placeholder={field.placeholder}
-                                        value={formData[field.name] || ''}
-                                        onChange={e => handleChange(field.name, e.target.value)}
-                                    />
-                                )}
-                                {field.type === 'number' && (
-                                    <input
-                                        type="number"
-                                        min="1"
-                                        className={inputClass}
-                                        placeholder={field.placeholder}
-                                        value={formData[field.name] || ''}
-                                        onChange={e => handleChange(field.name, e.target.value)}
-                                    />
-                                )}
-                                {field.type === 'currency' && (
-                                    <input
-                                        type="text"
-                                        className={inputClass}
-                                        placeholder={field.placeholder}
-                                        value={formData[field.name] || ''}
-                                        onChange={e => handleChange(field.name, formatRupiah(e.target.value))}
-                                    />
-                                )}
-                                {field.type === 'date' && (
-                                    <input
-                                        type="date"
-                                        className={inputClass}
-                                        value={formData[field.name] || ''}
-                                        onChange={e => handleChange(field.name, e.target.value)}
-                                    />
-                                )}
-                                {field.type === 'vendor_select' && (() => {
-                                    const amountStr = formData[field.amountField] || '';
-                                    const amountNum = parseInt(amountStr.toString().replace(/[^0-9]/g, ''), 10) || 0;
-                                    const hasAmount = amountNum > 0;
-                                    const isBelow10M = amountNum < 10000000;
-                                    const isManual = formData[`_manual_${field.name}`];
+                        {fields.map(field => {
+                            let isFieldRequired = field.required;
+                            if (field.type === 'vendor_select') {
+                                const amountStr = formData[field.amountField] || '';
+                                const amountNum = parseInt(amountStr.toString().replace(/[^0-9]/g, ''), 10) || 0;
+                                if (amountNum < 10000000) {
+                                    isFieldRequired = false;
+                                }
+                            }
 
-                                    return (
-                                        <div className="space-y-2">
-                                            {!hasAmount ? (
-                                                <div className="text-sm text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400 p-3 rounded-lg border border-amber-200 dark:border-amber-800">
-                                                    <span className="material-icons-round text-[16px] inline-block align-text-bottom mr-1">info</span>
-                                                    Silakan isi <strong>{field.amountField === 'total' ? 'Total Nilai PO' : 'Nilai PO (Rp)'}</strong> terlebih dahulu untuk memilih vendor.
-                                                </div>
-                                            ) : (
-                                                <>
-                                                    {isBelow10M && (
-                                                        <label className="flex items-start gap-3 cursor-pointer group select-none -mt-1 mb-2">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={!!isManual}
-                                                                onChange={e => handleChange(`_manual_${field.name}`, e.target.checked)}
-                                                                className="mt-0.5 w-4 h-4 rounded text-primary focus:ring-primary border-slate-300"
-                                                            />
-                                                            <span className="text-sm text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">Input Manual Vendor (PO &lt; 10 Juta)</span>
-                                                        </label>
-                                                    )}
-
-                                                    {isManual && isBelow10M ? (
-                                                        <input
-                                                            type="text"
-                                                            className={inputClass}
-                                                            placeholder="Ketik Nama Vendor..."
-                                                            value={formData[field.name] || ''}
-                                                            onChange={e => handleChange(field.name, e.target.value)}
-                                                        />
-                                                    ) : (
-                                                        <select
-                                                            className={inputClass}
-                                                            value={formData[field.name] || ''}
-                                                            onChange={e => handleChange(field.name, e.target.value)}
-                                                        >
-                                                            <option value="" disabled>Pilih Vendor dari Database...</option>
-                                                            {SUBCON_DATABASE.map(sub => (
-                                                                <option key={sub.id} value={sub.name}>{sub.name}</option>
-                                                            ))}
-                                                        </select>
-                                                    )}
-                                                </>
-                                            )}
-                                        </div>
-                                    );
-                                })()}
-                                {field.type === 'multiselect' && (
-                                    <div className="relative">
-                                        <div
-                                            className={`${inputClass} min-h-[42px] py-1.5 flex flex-wrap gap-1.5 cursor-text`}
-                                            onClick={() => {
-                                                const currentOpen = formData[`_open_${field.name}`];
-                                                handleChange(`_open_${field.name}`, !currentOpen);
-                                            }}
-                                        >
-                                            {(formData[field.name] || []).length === 0 && (
-                                                <span className="text-slate-400 mt-0.5">{field.placeholder || 'Pilih vendor...'}</span>
-                                            )}
-                                            {(formData[field.name] || []).map(opt => (
-                                                <span key={opt} className="bg-primary/10 text-primary text-xs font-semibold px-2 py-1 rounded-md flex items-center gap-1">
-                                                    {opt}
-                                                    <span
-                                                        className="material-icons-round text-[14px] cursor-pointer hover:text-primary-hover"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handleChange(field.name, formData[field.name].filter(item => item !== opt));
-                                                        }}
-                                                    >
-                                                        close
-                                                    </span>
-                                                </span>
-                                            ))}
-                                        </div>
-                                        {formData[`_open_${field.name}`] && (
-                                            <>
-                                                <div className="fixed inset-0 z-10" onClick={() => handleChange(`_open_${field.name}`, false)}></div>
-                                                <div className="absolute z-20 w-full mt-1 bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-600 rounded-lg shadow-lg max-h-48 overflow-y-auto custom-scrollbar">
-                                                    {field.options.map(opt => {
-                                                        const isSelected = (formData[field.name] || []).includes(opt);
-                                                        return (
-                                                            <div
-                                                                key={opt}
-                                                                className={`px-3 py-2 text-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center justify-between ${isSelected ? 'text-primary font-medium bg-primary/5 dark:bg-primary/10' : 'text-slate-700 dark:text-slate-300'}`}
-                                                                onClick={() => {
-                                                                    const current = formData[field.name] || [];
-                                                                    if (isSelected) {
-                                                                        handleChange(field.name, current.filter(item => item !== opt));
-                                                                    } else {
-                                                                        handleChange(field.name, [...current, opt]);
-                                                                    }
-                                                                }}
-                                                            >
-                                                                {opt}
-                                                                {isSelected && <span className="material-icons-round text-[16px]">check</span>}
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </>
-                                        )}
-                                    </div>
-                                )}
-                                {field.type === 'textarea' && (
-                                    <textarea
-                                        rows={3}
-                                        className={inputClass}
-                                        placeholder={field.placeholder}
-                                        value={formData[field.name] || ''}
-                                        onChange={e => handleChange(field.name, e.target.value)}
-                                    />
-                                )}
-                                {field.type === 'select' && (
-                                    <select
-                                        className={inputClass}
-                                        value={formData[field.name] || ''}
-                                        onChange={e => handleChange(field.name, e.target.value)}
-                                        disabled={field.disabled}
-                                    >
-                                        <option value="" disabled>Pilih...</option>
-                                        {field.options.map(opt => (
-                                            <option key={opt} value={opt}>{opt}</option>
-                                        ))}
-                                    </select>
-                                )}
-                                {field.type === 'rating' && (
-                                    <StarRating
-                                        value={formData[field.name] || 0}
-                                        onChange={val => handleChange(field.name, val)}
-                                    />
-                                )}
-                                {field.type === 'checkbox' && (
-                                    <label className="flex items-start gap-3 cursor-pointer group select-none">
+                            return (
+                                <div key={field.name}>
+                                    {field.type !== 'checkbox' && (
+                                        <label className={labelClass}>{field.label}{isFieldRequired && <span className="text-red-500 ml-1">*</span>}</label>
+                                    )}
+                                    {field.type === 'text' && (
                                         <input
-                                            type="checkbox"
-                                            checked={!!formData[field.name]}
-                                            onChange={e => handleChange(field.name, e.target.checked)}
-                                            className="mt-0.5 w-4 h-4 rounded text-primary focus:ring-primary border-slate-300"
+                                            type="text"
+                                            className={inputClass}
+                                            placeholder={field.placeholder}
+                                            value={formData[field.name] || ''}
+                                            onChange={e => handleChange(field.name, e.target.value)}
                                         />
-                                        <span className="text-sm text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">{field.label}</span>
-                                    </label>
-                                )}
-                                {field.type === 'multi_bill' && (() => {
-                                    const bills = formData.bills || [];
-                                    const updateBill = (idx, key, val) => {
-                                        const newBills = bills.map((b, i) => i === idx ? { ...b, [key]: val } : b);
-                                        handleChange('bills', newBills);
-                                    };
-                                    const addBill = () => {
-                                        const newId = (Math.max(0, ...bills.map(b => b.id)) + 1);
-                                        handleChange('bills', [...bills, { id: newId, label: `Tagihan ${bills.length + 1}`, amount: '', due: '', status: 'Unpaid' }]);
-                                    };
-                                    const removeBill = (idx) => {
-                                        if (bills.length <= 1) return;
-                                        const newBills = bills.filter((_, i) => i !== idx).map((b, i) => ({ ...b, label: `Tagihan ${i + 1}` }));
-                                        handleChange('bills', newBills);
-                                    };
-                                    const totalNum = bills.reduce((sum, b) => {
-                                        const num = parseInt((b.amount || '0').toString().replace(/[^0-9]/g, ''), 10) || 0;
-                                        return sum + num;
-                                    }, 0);
+                                    )}
+                                    {field.type === 'number' && (
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            className={inputClass}
+                                            placeholder={field.placeholder}
+                                            value={formData[field.name] || ''}
+                                            onChange={e => handleChange(field.name, e.target.value)}
+                                        />
+                                    )}
+                                    {field.type === 'currency' && (
+                                        <input
+                                            type="text"
+                                            className={inputClass}
+                                            placeholder={field.placeholder}
+                                            value={formData[field.name] || ''}
+                                            onChange={e => handleChange(field.name, formatRupiah(e.target.value))}
+                                        />
+                                    )}
+                                    {field.type === 'date' && (
+                                        <input
+                                            type="date"
+                                            className={inputClass}
+                                            value={formData[field.name] || ''}
+                                            onChange={e => handleChange(field.name, e.target.value)}
+                                        />
+                                    )}
+                                    {field.type === 'vendor_select' && (() => {
+                                        const amountStr = formData[field.amountField] || '';
+                                        const amountNum = parseInt(amountStr.toString().replace(/[^0-9]/g, ''), 10) || 0;
+                                        const hasAmount = amountNum > 0;
+                                        const isBelow10M = amountNum < 10000000;
+                                        const isManual = formData[`_manual_${field.name}`];
 
-                                    return (
-                                        <div className="space-y-3">
-                                            {bills.map((bill, idx) => (
-                                                <div key={bill.id} className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700 space-y-2">
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="text-xs font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wider flex items-center gap-1.5">
-                                                            <span className="material-icons-round text-[14px]">receipt</span>
-                                                            {bill.label}
-                                                        </span>
-                                                        {bills.length > 1 && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => removeBill(idx)}
-                                                                className="text-slate-400 hover:text-red-500 p-0.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                                                            >
-                                                                <span className="material-icons-round text-[16px]">close</span>
-                                                            </button>
-                                                        )}
+                                        return (
+                                            <div className="space-y-2">
+                                                {!hasAmount ? (
+                                                    <div className="text-sm text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400 p-3 rounded-lg border border-amber-200 dark:border-amber-800">
+                                                        <span className="material-icons-round text-[16px] inline-block align-text-bottom mr-1">info</span>
+                                                        Silakan isi <strong>{field.amountField === 'total' ? 'Total Nilai PO' : 'Nilai PO (Rp)'}</strong> terlebih dahulu untuk memilih vendor.
                                                     </div>
-                                                    <div className="grid grid-cols-2 gap-2">
-                                                        <div>
-                                                            <label className="text-[10px] font-medium text-slate-500 mb-0.5 block">Nilai Tagihan *</label>
+                                                ) : (
+                                                    <>
+                                                        {isBelow10M && (
+                                                            <label className="flex items-start gap-3 cursor-pointer group select-none -mt-1 mb-2">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={!!isManual}
+                                                                    onChange={e => handleChange(`_manual_${field.name}`, e.target.checked)}
+                                                                    className="mt-0.5 w-4 h-4 rounded text-primary focus:ring-primary border-slate-300"
+                                                                />
+                                                                <span className="text-sm text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">Input Manual Vendor (PO &lt; 10 Juta)</span>
+                                                            </label>
+                                                        )}
+
+                                                        {isManual && isBelow10M ? (
                                                             <input
                                                                 type="text"
                                                                 className={inputClass}
-                                                                placeholder="Rp 0"
-                                                                value={bill.amount || ''}
-                                                                onChange={e => updateBill(idx, 'amount', formatRupiah(e.target.value))}
+                                                                placeholder="Ketik Nama Vendor..."
+                                                                value={formData[field.name] || ''}
+                                                                onChange={e => handleChange(field.name, e.target.value)}
                                                             />
-                                                        </div>
-                                                        <div>
-                                                            <label className="text-[10px] font-medium text-slate-500 mb-0.5 block">Jatuh Tempo</label>
-                                                            <input
-                                                                type="date"
-                                                                className={inputClass}
-                                                                value={bill.due || ''}
-                                                                onChange={e => updateBill(idx, 'due', e.target.value)}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                    {isEdit && (
-                                                        <div>
-                                                            <label className="text-[10px] font-medium text-slate-500 mb-0.5 block">Status</label>
+                                                        ) : (
                                                             <select
                                                                 className={inputClass}
-                                                                value={bill.status || 'Unpaid'}
-                                                                onChange={e => updateBill(idx, 'status', e.target.value)}
+                                                                value={formData[field.name] || ''}
+                                                                onChange={e => handleChange(field.name, e.target.value)}
                                                             >
-                                                                <option value="Unpaid">Unpaid</option>
-                                                                <option value="Dibayar Sebagian">Dibayar Sebagian</option>
-                                                                <option value="Lunas">Lunas</option>
+                                                                <option value="" disabled>Pilih Vendor dari Database...</option>
+                                                                {SUBCON_DATABASE.map(sub => (
+                                                                    <option key={sub.id} value={sub.name}>{sub.name}</option>
+                                                                ))}
                                                             </select>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            ))}
-                                            <button
-                                                type="button"
-                                                onClick={addBill}
-                                                className="w-full py-2 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg text-slate-500 hover:border-orange-400 hover:text-orange-500 transition-colors flex items-center justify-center gap-1.5 text-sm"
-                                            >
-                                                <span className="material-icons-round text-[16px]">add_circle_outline</span> Tambah Tagihan
-                                            </button>
-                                            {/* Summary */}
-                                            <div className="flex items-center justify-between bg-orange-50 dark:bg-orange-900/10 p-2.5 rounded-lg border border-orange-200 dark:border-orange-800/40">
-                                                <span className="text-xs font-bold text-slate-600 dark:text-slate-400">{bills.length} Tagihan</span>
-                                                <span className="text-sm font-black text-orange-600 dark:text-orange-400">Total: Rp {totalNum.toLocaleString('id-ID')}</span>
+                                                        )}
+                                                    </>
+                                                )}
                                             </div>
+                                        );
+                                    })()}
+                                    {field.type === 'multiselect' && (
+                                        <div className="relative">
+                                            <div
+                                                className={`${inputClass} min-h-[42px] py-1.5 flex flex-wrap gap-1.5 cursor-text`}
+                                                onClick={() => {
+                                                    const currentOpen = formData[`_open_${field.name}`];
+                                                    handleChange(`_open_${field.name}`, !currentOpen);
+                                                }}
+                                            >
+                                                {(formData[field.name] || []).length === 0 && (
+                                                    <span className="text-slate-400 mt-0.5">{field.placeholder || 'Pilih vendor...'}</span>
+                                                )}
+                                                {(formData[field.name] || []).map(opt => (
+                                                    <span key={opt} className="bg-primary/10 text-primary text-xs font-semibold px-2 py-1 rounded-md flex items-center gap-1">
+                                                        {opt}
+                                                        <span
+                                                            className="material-icons-round text-[14px] cursor-pointer hover:text-primary-hover"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleChange(field.name, formData[field.name].filter(item => item !== opt));
+                                                            }}
+                                                        >
+                                                            close
+                                                        </span>
+                                                    </span>
+                                                ))}
+                                            </div>
+                                            {formData[`_open_${field.name}`] && (
+                                                <>
+                                                    <div className="fixed inset-0 z-10" onClick={() => handleChange(`_open_${field.name}`, false)}></div>
+                                                    <div className="absolute z-20 w-full mt-1 bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-600 rounded-lg shadow-lg max-h-48 overflow-y-auto custom-scrollbar">
+                                                        {field.options.map(opt => {
+                                                            const isSelected = (formData[field.name] || []).includes(opt);
+                                                            return (
+                                                                <div
+                                                                    key={opt}
+                                                                    className={`px-3 py-2 text-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center justify-between ${isSelected ? 'text-primary font-medium bg-primary/5 dark:bg-primary/10' : 'text-slate-700 dark:text-slate-300'}`}
+                                                                    onClick={() => {
+                                                                        const current = formData[field.name] || [];
+                                                                        if (isSelected) {
+                                                                            handleChange(field.name, current.filter(item => item !== opt));
+                                                                        } else {
+                                                                            handleChange(field.name, [...current, opt]);
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    {opt}
+                                                                    {isSelected && <span className="material-icons-round text-[16px]">check</span>}
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </>
+                                            )}
                                         </div>
-                                    );
-                                })()}
-                            </div>
-                        ))}
+                                    )}
+                                    {field.type === 'textarea' && (
+                                        <textarea
+                                            rows={3}
+                                            className={inputClass}
+                                            placeholder={field.placeholder}
+                                            value={formData[field.name] || ''}
+                                            onChange={e => handleChange(field.name, e.target.value)}
+                                        />
+                                    )}
+                                    {field.type === 'select' && (
+                                        <select
+                                            className={inputClass}
+                                            value={formData[field.name] || ''}
+                                            onChange={e => handleChange(field.name, e.target.value)}
+                                            disabled={field.disabled}
+                                        >
+                                            <option value="" disabled>Pilih...</option>
+                                            {field.options.map(opt => (
+                                                <option key={opt} value={opt}>{opt}</option>
+                                            ))}
+                                        </select>
+                                    )}
+                                    {field.type === 'rating' && (
+                                        <StarRating
+                                            value={formData[field.name] || 0}
+                                            onChange={val => handleChange(field.name, val)}
+                                        />
+                                    )}
+                                    {field.type === 'checkbox' && (
+                                        <label className="flex items-start gap-3 cursor-pointer group select-none">
+                                            <input
+                                                type="checkbox"
+                                                checked={!!formData[field.name]}
+                                                onChange={e => handleChange(field.name, e.target.checked)}
+                                                className="mt-0.5 w-4 h-4 rounded text-primary focus:ring-primary border-slate-300"
+                                            />
+                                            <span className="text-sm text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">{field.label}</span>
+                                        </label>
+                                    )}
+                                    {field.type === 'multi_bill' && (() => {
+                                        const bills = formData.bills || [];
+                                        const updateBill = (idx, key, val) => {
+                                            const newBills = bills.map((b, i) => i === idx ? { ...b, [key]: val } : b);
+                                            handleChange('bills', newBills);
+                                        };
+                                        const addBill = () => {
+                                            const newId = (Math.max(0, ...bills.map(b => b.id)) + 1);
+                                            handleChange('bills', [...bills, { id: newId, label: `Tagihan ${bills.length + 1}`, amount: '', due: '', status: 'Unpaid' }]);
+                                        };
+                                        const removeBill = (idx) => {
+                                            if (bills.length <= 1) return;
+                                            const newBills = bills.filter((_, i) => i !== idx).map((b, i) => ({ ...b, label: `Tagihan ${i + 1}` }));
+                                            handleChange('bills', newBills);
+                                        };
+                                        const totalNum = bills.reduce((sum, b) => {
+                                            const num = parseInt((b.amount || '0').toString().replace(/[^0-9]/g, ''), 10) || 0;
+                                            return sum + num;
+                                        }, 0);
+
+                                        return (
+                                            <div className="space-y-3">
+                                                {bills.map((bill, idx) => (
+                                                    <div key={bill.id} className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700 space-y-2">
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-xs font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wider flex items-center gap-1.5">
+                                                                <span className="material-icons-round text-[14px]">receipt</span>
+                                                                {bill.label}
+                                                            </span>
+                                                            {bills.length > 1 && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => removeBill(idx)}
+                                                                    className="text-slate-400 hover:text-red-500 p-0.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                                                >
+                                                                    <span className="material-icons-round text-[16px]">close</span>
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                        <div className="grid grid-cols-2 gap-2">
+                                                            <div>
+                                                                <label className="text-[10px] font-medium text-slate-500 mb-0.5 block">Nilai Tagihan *</label>
+                                                                <input
+                                                                    type="text"
+                                                                    className={inputClass}
+                                                                    placeholder="Rp 0"
+                                                                    value={bill.amount || ''}
+                                                                    onChange={e => updateBill(idx, 'amount', formatRupiah(e.target.value))}
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-[10px] font-medium text-slate-500 mb-0.5 block">Jatuh Tempo</label>
+                                                                <input
+                                                                    type="date"
+                                                                    className={inputClass}
+                                                                    value={bill.due || ''}
+                                                                    onChange={e => updateBill(idx, 'due', e.target.value)}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                        {isEdit && (
+                                                            <div>
+                                                                <label className="text-[10px] font-medium text-slate-500 mb-0.5 block">Status</label>
+                                                                <select
+                                                                    className={inputClass}
+                                                                    value={bill.status || 'Unpaid'}
+                                                                    onChange={e => updateBill(idx, 'status', e.target.value)}
+                                                                >
+                                                                    <option value="Unpaid">Unpaid</option>
+                                                                    <option value="Dibayar Sebagian">Dibayar Sebagian</option>
+                                                                    <option value="Lunas">Lunas</option>
+                                                                </select>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                                <button
+                                                    type="button"
+                                                    onClick={addBill}
+                                                    className="w-full py-2 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg text-slate-500 hover:border-orange-400 hover:text-orange-500 transition-colors flex items-center justify-center gap-1.5 text-sm"
+                                                >
+                                                    <span className="material-icons-round text-[16px]">add_circle_outline</span> Tambah Tagihan
+                                                </button>
+                                                {/* Summary */}
+                                                <div className="flex items-center justify-between bg-orange-50 dark:bg-orange-900/10 p-2.5 rounded-lg border border-orange-200 dark:border-orange-800/40">
+                                                    <span className="text-xs font-bold text-slate-600 dark:text-slate-400">{bills.length} Tagihan</span>
+                                                    <span className="text-sm font-black text-orange-600 dark:text-orange-400">Total: Rp {totalNum.toLocaleString('id-ID')}</span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
+                                </div>
+                            );
+                        })}
                     </div>
                 </form>
 

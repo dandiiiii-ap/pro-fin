@@ -206,6 +206,15 @@ export default function EditItemModal({ isOpen, onClose, item, onSubmit }) {
 
         // Validate required phase form fields
         for (const field of phaseFields) {
+            let isFieldRequired = field.required;
+            if (field.type === 'vendor_select') {
+                const amountStr = phaseData[field.amountField] || '';
+                const amountNum = parseInt(amountStr.toString().replace(/[^0-9]/g, ''), 10) || 0;
+                if (amountNum < 10000000) {
+                    isFieldRequired = false;
+                }
+            }
+
             if (field.type === 'multi_bill') {
                 const bills = phaseData.bills || [];
                 if (bills.length === 0) {
@@ -219,7 +228,7 @@ export default function EditItemModal({ isOpen, onClose, item, onSubmit }) {
                         return;
                     }
                 }
-            } else if (field.required && field.name !== 'title') {
+            } else if (isFieldRequired && field.name !== 'title') {
                 const val = phaseData[field.name];
                 if (!val || (typeof val === 'string' && val.trim() === '') || val === false || val === 0) {
                     setError(`Field "${field.label}" wajib diisi.`);
@@ -516,281 +525,292 @@ export default function EditItemModal({ isOpen, onClose, item, onSubmit }) {
                                 <div className="col-span-full text-center py-4 text-slate-500 italic text-sm">Tidak ada metadata khusus untuk diedit di fase ini.</div>
                             ) : null}
 
-                            {phaseFields.map(field => (
-                                <div key={field.name} className={`${field.type === 'textarea' || field.type === 'multiselect' || field.type === 'multi_bill' ? 'col-span-full' : ''}`}>
-                                    <label className={labelClass}>{field.label}{field.required && <span className="text-red-500 ml-1">*</span>}</label>
+                            {phaseFields.map(field => {
+                                let isFieldRequired = field.required;
+                                if (field.type === 'vendor_select') {
+                                    const amountStr = phaseData[field.amountField] || '';
+                                    const amountNum = parseInt(amountStr.toString().replace(/[^0-9]/g, ''), 10) || 0;
+                                    if (amountNum < 10000000) {
+                                        isFieldRequired = false;
+                                    }
+                                }
 
-                                    {field.type === 'text' && (
-                                        <input
-                                            type="text"
-                                            className={inputClass}
-                                            placeholder={field.placeholder}
-                                            value={phaseData[field.name] || ''}
-                                            onChange={e => handlePhaseDataChange(field.name, e.target.value)}
-                                        />
-                                    )}
-                                    {field.type === 'currency' && (
-                                        <input
-                                            type="text"
-                                            className={inputClass}
-                                            placeholder={field.placeholder}
-                                            value={phaseData[field.name] || ''}
-                                            onChange={e => handlePhaseDataChange(field.name, formatRupiah(e.target.value))}
-                                        />
-                                    )}
-                                    {field.type === 'vendor_select' && (() => {
-                                        const amountStr = phaseData[field.amountField] || '';
-                                        const amountNum = parseInt(amountStr.toString().replace(/[^0-9]/g, ''), 10) || 0;
-                                        const hasAmount = amountNum > 0;
-                                        const isBelow10M = amountNum < 10000000;
-                                        const isManual = phaseData[`_manual_${field.name}`];
+                                return (
+                                    <div key={field.name} className={`${field.type === 'textarea' || field.type === 'multiselect' || field.type === 'multi_bill' ? 'col-span-full' : ''}`}>
+                                        <label className={labelClass}>{field.label}{isFieldRequired && <span className="text-red-500 ml-1">*</span>}</label>
 
-                                        return (
-                                            <div className="space-y-2">
-                                                {!hasAmount ? (
-                                                    <div className="text-sm text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400 p-3 rounded-lg border border-amber-200 dark:border-amber-800">
-                                                        <span className="material-icons-round text-[16px] inline-block align-text-bottom mr-1">info</span>
-                                                        Silakan isi <strong>Total Nilai PO</strong> terlebih dahulu untuk memilih vendor.
-                                                    </div>
-                                                ) : (
-                                                    <>
-                                                        {isBelow10M && (
-                                                            <label className="flex items-start gap-3 cursor-pointer group select-none -mt-1 mb-2">
+                                        {field.type === 'text' && (
+                                            <input
+                                                type="text"
+                                                className={inputClass}
+                                                placeholder={field.placeholder}
+                                                value={phaseData[field.name] || ''}
+                                                onChange={e => handlePhaseDataChange(field.name, e.target.value)}
+                                            />
+                                        )}
+                                        {field.type === 'currency' && (
+                                            <input
+                                                type="text"
+                                                className={inputClass}
+                                                placeholder={field.placeholder}
+                                                value={phaseData[field.name] || ''}
+                                                onChange={e => handlePhaseDataChange(field.name, formatRupiah(e.target.value))}
+                                            />
+                                        )}
+                                        {field.type === 'vendor_select' && (() => {
+                                            const amountStr = phaseData[field.amountField] || '';
+                                            const amountNum = parseInt(amountStr.toString().replace(/[^0-9]/g, ''), 10) || 0;
+                                            const hasAmount = amountNum > 0;
+                                            const isBelow10M = amountNum < 10000000;
+                                            const isManual = phaseData[`_manual_${field.name}`];
+
+                                            return (
+                                                <div className="space-y-2">
+                                                    {!hasAmount ? (
+                                                        <div className="text-sm text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400 p-3 rounded-lg border border-amber-200 dark:border-amber-800">
+                                                            <span className="material-icons-round text-[16px] inline-block align-text-bottom mr-1">info</span>
+                                                            Silakan isi <strong>Total Nilai PO</strong> terlebih dahulu untuk memilih vendor.
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            {isBelow10M && (
+                                                                <label className="flex items-start gap-3 cursor-pointer group select-none -mt-1 mb-2">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={!!isManual}
+                                                                        onChange={e => handlePhaseDataChange(`_manual_${field.name}`, e.target.checked)}
+                                                                        className="mt-0.5 w-4 h-4 rounded text-primary focus:ring-primary border-slate-300"
+                                                                    />
+                                                                    <span className="text-sm text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">Input Manual Vendor (PO &lt; 10 Juta)</span>
+                                                                </label>
+                                                            )}
+
+                                                            {isManual && isBelow10M ? (
                                                                 <input
-                                                                    type="checkbox"
-                                                                    checked={!!isManual}
-                                                                    onChange={e => handlePhaseDataChange(`_manual_${field.name}`, e.target.checked)}
-                                                                    className="mt-0.5 w-4 h-4 rounded text-primary focus:ring-primary border-slate-300"
+                                                                    type="text"
+                                                                    className={inputClass}
+                                                                    placeholder="Ketik Nama Vendor..."
+                                                                    value={phaseData[field.name] || ''}
+                                                                    onChange={e => handlePhaseDataChange(field.name, e.target.value)}
                                                                 />
-                                                                <span className="text-sm text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">Input Manual Vendor (PO &lt; 10 Juta)</span>
-                                                            </label>
-                                                        )}
+                                                            ) : (
+                                                                <select
+                                                                    className={inputClass}
+                                                                    value={phaseData[field.name] || ''}
+                                                                    onChange={e => handlePhaseDataChange(field.name, e.target.value)}
+                                                                >
+                                                                    <option value="" disabled>Pilih Vendor dari Database...</option>
+                                                                    {SUBCON_DATABASE.map(sub => (
+                                                                        <option key={sub.id} value={sub.name}>{sub.name}</option>
+                                                                    ))}
+                                                                </select>
+                                                            )}
+                                                        </>
+                                                    )}
+                                                </div>
+                                            );
+                                        })()}
+                                        {field.type === 'select' && (() => {
+                                            let isDisabled = false;
+                                            let warningMsg = null;
 
-                                                        {isManual && isBelow10M ? (
-                                                            <input
-                                                                type="text"
-                                                                className={inputClass}
-                                                                placeholder="Ketik Nama Vendor..."
-                                                                value={phaseData[field.name] || ''}
-                                                                onChange={e => handlePhaseDataChange(field.name, e.target.value)}
-                                                            />
-                                                        ) : (
-                                                            <select
-                                                                className={inputClass}
-                                                                value={phaseData[field.name] || ''}
-                                                                onChange={e => handlePhaseDataChange(field.name, e.target.value)}
+                                            if (field.name === 'status' || field.name === 'paymentStatus') {
+                                                const invTotalStr = phaseData['total'] || phaseData['invoiceValue'] || '';
+                                                const invTotalNum = parseInt(invTotalStr.toString().replace(/[^0-9]/g, ''), 10) || 0;
+                                                if (invTotalNum >= 10000000) {
+                                                    isDisabled = true;
+                                                    warningMsg = "Status Pembayaran untuk invoice >= 10 Juta hanya dapat diubah oleh tim Finance.";
+                                                }
+                                            }
+
+                                            return (
+                                                <div className="space-y-2">
+                                                    <select
+                                                        className={inputClass}
+                                                        value={phaseData[field.name] || ''}
+                                                        onChange={e => handlePhaseDataChange(field.name, e.target.value)}
+                                                        disabled={isDisabled}
+                                                    >
+                                                        <option value="" disabled>Pilih...</option>
+                                                        {field.options.map(opt => (
+                                                            <option key={opt} value={opt}>{opt}</option>
+                                                        ))}
+                                                    </select>
+                                                    {warningMsg && (
+                                                        <div className="flex items-start gap-1.5 text-xs text-amber-600 dark:text-amber-400 mt-1">
+                                                            <span className="material-icons-round text-[14px]">info</span>
+                                                            <span>{warningMsg}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })()}
+                                        {field.type === 'multiselect' && (
+                                            <div className="relative">
+                                                <div
+                                                    className={`${inputClass} min-h-[42px] py-1.5 flex flex-wrap gap-1.5 cursor-text`}
+                                                    onClick={() => handlePhaseDataChange(`_open_${field.name}`, !phaseData[`_open_${field.name}`])}
+                                                >
+                                                    {(phaseData[field.name] || []).length === 0 && (
+                                                        <span className="text-slate-400 mt-0.5">{field.placeholder || 'Pilih...'}</span>
+                                                    )}
+                                                    {(phaseData[field.name] || []).map(opt => (
+                                                        <span key={opt} className="bg-primary/10 text-primary text-xs font-semibold px-2 py-1 rounded-md flex items-center gap-1">
+                                                            {opt}
+                                                            <span
+                                                                className="material-icons-round text-[14px] cursor-pointer hover:text-primary-hover"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handlePhaseDataChange(field.name, phaseData[field.name].filter(item => item !== opt));
+                                                                }}
                                                             >
-                                                                <option value="" disabled>Pilih Vendor dari Database...</option>
-                                                                {SUBCON_DATABASE.map(sub => (
-                                                                    <option key={sub.id} value={sub.name}>{sub.name}</option>
-                                                                ))}
-                                                            </select>
-                                                        )}
+                                                                close
+                                                            </span>
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                                {phaseData[`_open_${field.name}`] && (
+                                                    <>
+                                                        <div className="fixed inset-0 z-10" onClick={() => handlePhaseDataChange(`_open_${field.name}`, false)}></div>
+                                                        <div className="absolute z-20 w-full mt-1 bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-600 rounded-lg shadow-lg max-h-48 overflow-y-auto custom-scrollbar">
+                                                            {field.options.map(opt => {
+                                                                const isSelected = (phaseData[field.name] || []).includes(opt);
+                                                                return (
+                                                                    <div
+                                                                        key={opt}
+                                                                        className={`px-3 py-2 text-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center justify-between ${isSelected ? 'text-primary font-medium bg-primary/5 dark:bg-primary/10' : 'text-slate-700 dark:text-slate-300'}`}
+                                                                        onClick={() => {
+                                                                            const current = phaseData[field.name] || [];
+                                                                            if (isSelected) {
+                                                                                handlePhaseDataChange(field.name, current.filter(item => item !== opt));
+                                                                            } else {
+                                                                                handlePhaseDataChange(field.name, [...current, opt]);
+                                                                            }
+                                                                        }}
+                                                                    >
+                                                                        {opt}
+                                                                        {isSelected && <span className="material-icons-round text-[16px]">check</span>}
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
                                                     </>
                                                 )}
                                             </div>
-                                        );
-                                    })()}
-                                    {field.type === 'select' && (() => {
-                                        let isDisabled = false;
-                                        let warningMsg = null;
+                                        )}
 
-                                        if (field.name === 'status' || field.name === 'paymentStatus') {
-                                            const invTotalStr = phaseData['total'] || phaseData['invoiceValue'] || '';
-                                            const invTotalNum = parseInt(invTotalStr.toString().replace(/[^0-9]/g, ''), 10) || 0;
-                                            if (invTotalNum >= 10000000) {
-                                                isDisabled = true;
-                                                warningMsg = "Status Pembayaran untuk invoice >= 10 Juta hanya dapat diubah oleh tim Finance.";
-                                            }
-                                        }
-
-                                        return (
-                                            <div className="space-y-2">
-                                                <select
-                                                    className={inputClass}
-                                                    value={phaseData[field.name] || ''}
-                                                    onChange={e => handlePhaseDataChange(field.name, e.target.value)}
-                                                    disabled={isDisabled}
-                                                >
-                                                    <option value="" disabled>Pilih...</option>
-                                                    {field.options.map(opt => (
-                                                        <option key={opt} value={opt}>{opt}</option>
-                                                    ))}
-                                                </select>
-                                                {warningMsg && (
-                                                    <div className="flex items-start gap-1.5 text-xs text-amber-600 dark:text-amber-400 mt-1">
-                                                        <span className="material-icons-round text-[14px]">info</span>
-                                                        <span>{warningMsg}</span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })()}
-                                    {field.type === 'multiselect' && (
-                                        <div className="relative">
-                                            <div
-                                                className={`${inputClass} min-h-[42px] py-1.5 flex flex-wrap gap-1.5 cursor-text`}
-                                                onClick={() => handlePhaseDataChange(`_open_${field.name}`, !phaseData[`_open_${field.name}`])}
-                                            >
-                                                {(phaseData[field.name] || []).length === 0 && (
-                                                    <span className="text-slate-400 mt-0.5">{field.placeholder || 'Pilih...'}</span>
-                                                )}
-                                                {(phaseData[field.name] || []).map(opt => (
-                                                    <span key={opt} className="bg-primary/10 text-primary text-xs font-semibold px-2 py-1 rounded-md flex items-center gap-1">
-                                                        {opt}
-                                                        <span
-                                                            className="material-icons-round text-[14px] cursor-pointer hover:text-primary-hover"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handlePhaseDataChange(field.name, phaseData[field.name].filter(item => item !== opt));
-                                                            }}
-                                                        >
-                                                            close
-                                                        </span>
-                                                    </span>
-                                                ))}
-                                            </div>
-                                            {phaseData[`_open_${field.name}`] && (
-                                                <>
-                                                    <div className="fixed inset-0 z-10" onClick={() => handlePhaseDataChange(`_open_${field.name}`, false)}></div>
-                                                    <div className="absolute z-20 w-full mt-1 bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-600 rounded-lg shadow-lg max-h-48 overflow-y-auto custom-scrollbar">
-                                                        {field.options.map(opt => {
-                                                            const isSelected = (phaseData[field.name] || []).includes(opt);
-                                                            return (
-                                                                <div
-                                                                    key={opt}
-                                                                    className={`px-3 py-2 text-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center justify-between ${isSelected ? 'text-primary font-medium bg-primary/5 dark:bg-primary/10' : 'text-slate-700 dark:text-slate-300'}`}
-                                                                    onClick={() => {
-                                                                        const current = phaseData[field.name] || [];
-                                                                        if (isSelected) {
-                                                                            handlePhaseDataChange(field.name, current.filter(item => item !== opt));
-                                                                        } else {
-                                                                            handlePhaseDataChange(field.name, [...current, opt]);
-                                                                        }
-                                                                    }}
-                                                                >
-                                                                    {opt}
-                                                                    {isSelected && <span className="material-icons-round text-[16px]">check</span>}
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                </>
-                                            )}
-                                        </div>
-                                    )}
-
-                                    {/* Multi Bill Builder */}
-                                    {field.type === 'multi_bill' && (
-                                        <div className="space-y-3 bg-white dark:bg-white/5 p-4 rounded-xl border border-slate-200 dark:border-white/10">
-                                            {(phaseData.bills || []).map((bill, index) => (
-                                                <div key={bill.id || index} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-start relative group p-3 border border-slate-200 dark:border-white/10 rounded-lg hover:border-primary/50 transition-colors">
-                                                    <div className="md:col-span-3">
-                                                        <label className="block text-xs text-slate-500 mb-1">Nama Tagihan</label>
-                                                        <input
-                                                            type="text"
-                                                            className={inputClass}
-                                                            value={bill.label}
-                                                            onChange={(e) => {
-                                                                const newBills = [...phaseData.bills];
-                                                                newBills[index].label = e.target.value;
-                                                                handlePhaseDataChange('bills', newBills);
-                                                            }}
-                                                        />
-                                                    </div>
-                                                    <div className="md:col-span-3">
-                                                        <label className="block text-xs text-slate-500 mb-1">Nominal (Rp)</label>
-                                                        <input
-                                                            type="text"
-                                                            className={inputClass}
-                                                            value={bill.amount}
-                                                            onChange={(e) => {
-                                                                const newBills = [...phaseData.bills];
-                                                                newBills[index].amount = formatRupiah(e.target.value);
-                                                                handlePhaseDataChange('bills', newBills);
-                                                            }}
-                                                        />
-                                                    </div>
-                                                    <div className="md:col-span-3">
-                                                        <label className="block text-xs text-slate-500 mb-1">Jatuh Tempo</label>
-                                                        <input
-                                                            type="date"
-                                                            className={inputClass}
-                                                            value={bill.due}
-                                                            onChange={(e) => {
-                                                                const newBills = [...phaseData.bills];
-                                                                newBills[index].due = e.target.value;
-                                                                handlePhaseDataChange('bills', newBills);
-                                                            }}
-                                                        />
-                                                    </div>
-                                                    <div className="md:col-span-2">
-                                                        <label className="block text-xs text-slate-500 mb-1">Status</label>
-                                                        <select
-                                                            className={inputClass}
-                                                            value={bill.status || 'Unpaid'}
-                                                            onChange={(e) => {
-                                                                const newBills = [...phaseData.bills];
-                                                                newBills[index].status = e.target.value;
-                                                                handlePhaseDataChange('bills', newBills);
-                                                            }}
-                                                        >
-                                                            <option value="Unpaid">Unpaid</option>
-                                                            <option value="Dibayar Sebagian">Dibayar Sebagian</option>
-                                                            <option value="Lunas">Lunas</option>
-                                                        </select>
-                                                    </div>
-                                                    <div className="md:col-span-1 flex justify-end mt-6">
-                                                        {phaseData.bills.length > 1 && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => {
-                                                                    const newBills = phaseData.bills.filter((_, i) => i !== index);
-                                                                    // Re-label
-                                                                    newBills.forEach((b, i) => b.label = `Tagihan ${i + 1}`);
+                                        {/* Multi Bill Builder */}
+                                        {field.type === 'multi_bill' && (
+                                            <div className="space-y-3 bg-white dark:bg-white/5 p-4 rounded-xl border border-slate-200 dark:border-white/10">
+                                                {(phaseData.bills || []).map((bill, index) => (
+                                                    <div key={bill.id || index} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-start relative group p-3 border border-slate-200 dark:border-white/10 rounded-lg hover:border-primary/50 transition-colors">
+                                                        <div className="md:col-span-3">
+                                                            <label className="block text-xs text-slate-500 mb-1">Nama Tagihan</label>
+                                                            <input
+                                                                type="text"
+                                                                className={inputClass}
+                                                                value={bill.label}
+                                                                onChange={(e) => {
+                                                                    const newBills = [...phaseData.bills];
+                                                                    newBills[index].label = e.target.value;
                                                                     handlePhaseDataChange('bills', newBills);
                                                                 }}
-                                                                className="w-10 h-10 flex items-center justify-center rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
-                                                                title="Hapus Tagihan"
+                                                            />
+                                                        </div>
+                                                        <div className="md:col-span-3">
+                                                            <label className="block text-xs text-slate-500 mb-1">Nominal (Rp)</label>
+                                                            <input
+                                                                type="text"
+                                                                className={inputClass}
+                                                                value={bill.amount}
+                                                                onChange={(e) => {
+                                                                    const newBills = [...phaseData.bills];
+                                                                    newBills[index].amount = formatRupiah(e.target.value);
+                                                                    handlePhaseDataChange('bills', newBills);
+                                                                }}
+                                                            />
+                                                        </div>
+                                                        <div className="md:col-span-3">
+                                                            <label className="block text-xs text-slate-500 mb-1">Jatuh Tempo</label>
+                                                            <input
+                                                                type="date"
+                                                                className={inputClass}
+                                                                value={bill.due}
+                                                                onChange={(e) => {
+                                                                    const newBills = [...phaseData.bills];
+                                                                    newBills[index].due = e.target.value;
+                                                                    handlePhaseDataChange('bills', newBills);
+                                                                }}
+                                                            />
+                                                        </div>
+                                                        <div className="md:col-span-2">
+                                                            <label className="block text-xs text-slate-500 mb-1">Status</label>
+                                                            <select
+                                                                className={inputClass}
+                                                                value={bill.status || 'Unpaid'}
+                                                                onChange={(e) => {
+                                                                    const newBills = [...phaseData.bills];
+                                                                    newBills[index].status = e.target.value;
+                                                                    handlePhaseDataChange('bills', newBills);
+                                                                }}
                                                             >
-                                                                <span className="material-icons-round text-[20px]">delete</span>
-                                                            </button>
-                                                        )}
+                                                                <option value="Unpaid">Unpaid</option>
+                                                                <option value="Dibayar Sebagian">Dibayar Sebagian</option>
+                                                                <option value="Lunas">Lunas</option>
+                                                            </select>
+                                                        </div>
+                                                        <div className="md:col-span-1 flex justify-end mt-6">
+                                                            {phaseData.bills.length > 1 && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        const newBills = phaseData.bills.filter((_, i) => i !== index);
+                                                                        // Re-label
+                                                                        newBills.forEach((b, i) => b.label = `Tagihan ${i + 1}`);
+                                                                        handlePhaseDataChange('bills', newBills);
+                                                                    }}
+                                                                    className="w-10 h-10 flex items-center justify-center rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                                                                    title="Hapus Tagihan"
+                                                                >
+                                                                    <span className="material-icons-round text-[20px]">delete</span>
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+
+                                                <div className="flex justify-between items-center mt-4">
+                                                    <button
+                                                        type="button"
+                                                        className="text-sm font-medium text-primary hover:text-primary-hover flex items-center gap-1 bg-primary/5 hover:bg-primary/10 px-3 py-1.5 rounded-lg transition-colors"
+                                                        onClick={() => {
+                                                            const newBills = [...(phaseData.bills || [])];
+                                                            newBills.push({
+                                                                id: Date.now(),
+                                                                label: `Tagihan ${newBills.length + 1}`,
+                                                                amount: 'Rp 0',
+                                                                due: '',
+                                                                status: 'Unpaid'
+                                                            });
+                                                            handlePhaseDataChange('bills', newBills);
+                                                        }}
+                                                    >
+                                                        <span className="material-icons text-[18px]">add_circle</span>
+                                                        Tambah Tagihan
+                                                    </button>
+
+                                                    <div className="text-sm">
+                                                        <span className="text-slate-500">Total Tagihan: </span>
+                                                        <span className="font-bold text-slate-900 dark:text-white">
+                                                            Rp {(phaseData.bills || []).reduce((sum, b) => sum + parseRupiah(b.amount), 0).toLocaleString('id-ID')}
+                                                        </span>
                                                     </div>
                                                 </div>
-                                            ))}
-
-                                            <div className="flex justify-between items-center mt-4">
-                                                <button
-                                                    type="button"
-                                                    className="text-sm font-medium text-primary hover:text-primary-hover flex items-center gap-1 bg-primary/5 hover:bg-primary/10 px-3 py-1.5 rounded-lg transition-colors"
-                                                    onClick={() => {
-                                                        const newBills = [...(phaseData.bills || [])];
-                                                        newBills.push({
-                                                            id: Date.now(),
-                                                            label: `Tagihan ${newBills.length + 1}`,
-                                                            amount: 'Rp 0',
-                                                            due: '',
-                                                            status: 'Unpaid'
-                                                        });
-                                                        handlePhaseDataChange('bills', newBills);
-                                                    }}
-                                                >
-                                                    <span className="material-icons text-[18px]">add_circle</span>
-                                                    Tambah Tagihan
-                                                </button>
-
-                                                <div className="text-sm">
-                                                    <span className="text-slate-500">Total Tagihan: </span>
-                                                    <span className="font-bold text-slate-900 dark:text-white">
-                                                        Rp {(phaseData.bills || []).reduce((sum, b) => sum + parseRupiah(b.amount), 0).toLocaleString('id-ID')}
-                                                    </span>
-                                                </div>
                                             </div>
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
+                                        )}
+                                    </div>
+                                );
+                            })}
                         </div>
                         {error && (
                             <div className="mt-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-3 rounded-lg text-sm flex items-start gap-2 border border-red-100 dark:border-red-900/30">
