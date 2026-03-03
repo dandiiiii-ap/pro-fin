@@ -603,7 +603,7 @@ export default function Subkontraktor() {
                                     <div className="bg-slate-50/50 dark:bg-slate-800/30 border-b border-slate-200 dark:border-slate-800 p-4">
                                         <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3 flex items-center gap-2">
                                             <span className="material-icons text-sm">pie_chart</span>
-                                            Ringkasan Transaksi per Project Manager
+                                            Ringkasan Transaksi per User
                                         </h4>
                                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                             {(() => {
@@ -614,7 +614,7 @@ export default function Subkontraktor() {
                                                 if (subconTrxs.length === 0) {
                                                     return (
                                                         <div className="col-span-3 text-center py-4 text-slate-500 dark:text-slate-400 text-sm italic">
-                                                            Belum ada transaksi dengan Project Manager manapun.
+                                                            Belum ada transaksi dengan User manapun.
                                                         </div>
                                                     );
                                                 }
