@@ -47,8 +47,11 @@ function getFields(from, to, isEdit = false) {
                 ];
             case 'do':
                 return [
-                    { name: 'recv', label: 'Diterima Oleh (Receiver)', type: 'text', required: true, placeholder: 'Nama penerima...' },
-                    { name: 'qty', label: 'Jumlah Datang', type: 'text', required: false, placeholder: 'Cth: 50 M3' }
+                    { name: 'recv', label: 'Nama Penerima', type: 'text', required: true, placeholder: 'Nama penerima...' },
+                    { name: 'receivedDate', label: 'Waktu Diterima', type: 'datetime', required: true },
+                    { name: 'doPhoto', label: 'Foto/Video', type: 'file', required: false },
+                    { name: 'notes', label: 'Catatan', type: 'textarea', required: false, placeholder: 'Catatan penerimaan barang...' },
+                    { name: 'materialCondition', label: 'Kondisi Barang Pesanan (Kualitas, Spek, Jumlah)', type: 'material_condition', required: true }
                 ];
             case 'evaluation':
                 return [
@@ -78,10 +81,11 @@ function getFields(from, to, isEdit = false) {
             ];
         case 'do':
             return [
-                { name: 'doNumber', label: 'No. DO / Surat Jalan', type: 'text', required: true, placeholder: 'cth: SJ-2024-321' },
-                { name: 'receivedBy', label: 'Diterima Oleh', type: 'text', required: true, placeholder: 'Nama penerima di lokasi' },
-                { name: 'receivedDate', label: 'Tanggal Terima', type: 'date', required: true },
-                { name: 'notes', label: 'Catatan Penerimaan', type: 'textarea', required: false, placeholder: 'Kondisi barang, kekurangan, dll.' },
+                { name: 'receivedBy', label: 'Nama Penerima', type: 'text', required: true, placeholder: 'Nama penerima di lokasi' },
+                { name: 'receivedDate', label: 'Waktu Diterima', type: 'datetime', required: true },
+                { name: 'doPhoto', label: 'Foto/Video', type: 'file', required: false },
+                { name: 'notes', label: 'Catatan', type: 'textarea', required: false, placeholder: 'Catatan penerimaan barang...' },
+                { name: 'materialCondition', label: 'Kondisi Barang Pesanan (Kualitas, Spek, Jumlah)', type: 'material_condition', required: true }
             ];
         case 'evaluation':
             return [
@@ -191,6 +195,35 @@ export default function PhaseTransitionModal({ isOpen, onClose, onConfirm, fromS
         if (error) setError('');
     };
 
+    // Helper: build material rows from item for DO condition check
+    const getMaterialRows = () => {
+        if (!cachedItem) return [];
+        const rows = [];
+        // The main item itself is a material row
+        if (cachedItem.title) {
+            rows.push({
+                key: 'main',
+                label: cachedItem.title,
+                detail: [cachedItem.vol, cachedItem.qty].filter(Boolean).join(' • ')
+            });
+        }
+        // If item has sub-items (future extensibility)
+        if (cachedItem._rawItems && Array.isArray(cachedItem._rawItems)) {
+            cachedItem._rawItems.forEach((sub, idx) => {
+                rows.push({
+                    key: `sub_${idx}`,
+                    label: sub.title || `Item ${idx + 1}`,
+                    detail: [sub.qty ? `${sub.qty} ${sub.unit || ''}`.trim() : null].filter(Boolean).join(' • ')
+                });
+            });
+        }
+        // Fallback: if no rows found, create a generic one
+        if (rows.length === 0) {
+            rows.push({ key: 'item', label: cachedItem.code || 'Item Pesanan', detail: '' });
+        }
+        return rows;
+    };
+
     const handleSubmit = (e) => {
         e.preventDefault();
         // Validate required fields
@@ -215,6 +248,21 @@ export default function PhaseTransitionModal({ isOpen, onClose, onConfirm, fromS
                         if (!bills[i].amount || bills[i].amount.trim() === '' || bills[i].amount === 'Rp 0') {
                             setError(`Tagihan ${i + 1}: Nilai tagihan wajib diisi.`);
                             return;
+                        }
+                    }
+                    continue;
+                }
+                if (field.type === 'material_condition') {
+                    const conditions = formData[field.name] || {};
+                    const itemTitle = cachedItem?.title || 'Item';
+                    // We need at least one material row to be answered
+                    const materialRows = getMaterialRows();
+                    if (materialRows.length > 0) {
+                        for (const row of materialRows) {
+                            if (!conditions[row.key]) {
+                                setError(`Kondisi "${row.label}" wajib dipilih (Sesuai/Tidak Sesuai).`);
+                                return;
+                            }
                         }
                     }
                     continue;
@@ -497,6 +545,97 @@ export default function PhaseTransitionModal({ isOpen, onClose, onConfirm, fromS
                                             <span className="text-sm text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">{field.label}</span>
                                         </label>
                                     )}
+                                    {field.type === 'datetime' && (
+                                        <input
+                                            type="datetime-local"
+                                            className={inputClass}
+                                            value={formData[field.name] || ''}
+                                            onChange={e => handleChange(field.name, e.target.value)}
+                                        />
+                                    )}
+                                    {field.type === 'file' && (
+                                        <div>
+                                            <input
+                                                type="file"
+                                                accept="image/*,video/*"
+                                                className={`${inputClass} file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-primary/10 file:text-primary file:font-medium file:text-sm file:cursor-pointer hover:file:bg-primary/20`}
+                                                onChange={e => {
+                                                    const file = e.target.files[0];
+                                                    if (file) {
+                                                        handleChange(field.name, file.name);
+                                                        const reader = new FileReader();
+                                                        reader.onloadend = () => handleChange(`${field.name}_data`, reader.result);
+                                                        reader.readAsDataURL(file);
+                                                    }
+                                                }}
+                                            />
+                                            {formData[`${field.name}_data`] && (
+                                                <div className="mt-2 p-2 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                                                    {formData[`${field.name}_data`].startsWith('data:video') ? (
+                                                        <video src={formData[`${field.name}_data`]} controls className="max-h-32 rounded" />
+                                                    ) : (
+                                                        <img src={formData[`${field.name}_data`]} alt="Preview" className="max-h-32 rounded object-contain" />
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                    {field.type === 'material_condition' && (() => {
+                                        const materialRows = getMaterialRows();
+                                        const conditions = formData[field.name] || {};
+
+                                        if (materialRows.length === 0) {
+                                            return (
+                                                <div className="text-sm text-slate-500 italic bg-slate-50 dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+                                                    Tidak ada data material untuk diperiksa.
+                                                </div>
+                                            );
+                                        }
+
+                                        return (
+                                            <div className="space-y-2">
+                                                {materialRows.map((row, idx) => (
+                                                    <div key={row.key} className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${conditions[row.key] === 'sesuai' ? 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800' :
+                                                        conditions[row.key] === 'tidak_sesuai' ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800' :
+                                                            'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
+                                                        }`}>
+                                                        <div className="flex-1 min-w-0 mr-3">
+                                                            <div className="text-sm font-medium text-slate-900 dark:text-white truncate">{row.label}</div>
+                                                            {row.detail && <div className="text-[11px] text-slate-500 truncate">{row.detail}</div>}
+                                                        </div>
+                                                        <div className="flex items-center gap-2 shrink-0">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const updated = { ...conditions, [row.key]: 'sesuai' };
+                                                                    handleChange(field.name, updated);
+                                                                }}
+                                                                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${conditions[row.key] === 'sesuai'
+                                                                    ? 'bg-green-500 text-white border-green-600 shadow-sm'
+                                                                    : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:border-green-400 hover:text-green-600'
+                                                                    }`}
+                                                            >
+                                                                <span className="material-icons-round text-[14px] align-middle mr-0.5">check_circle</span> Sesuai
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const updated = { ...conditions, [row.key]: 'tidak_sesuai' };
+                                                                    handleChange(field.name, updated);
+                                                                }}
+                                                                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${conditions[row.key] === 'tidak_sesuai'
+                                                                    ? 'bg-red-500 text-white border-red-600 shadow-sm'
+                                                                    : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:border-red-400 hover:text-red-600'
+                                                                    }`}
+                                                            >
+                                                                <span className="material-icons-round text-[14px] align-middle mr-0.5">cancel</span> Tidak Sesuai
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        );
+                                    })()}
                                     {field.type === 'multi_bill' && (() => {
                                         const bills = formData.bills || [];
                                         const updateBill = (idx, key, val) => {
