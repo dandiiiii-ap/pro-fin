@@ -46,8 +46,11 @@ function getPhaseFields(stage) {
             ];
         case 'do':
             return [
-                { name: 'recv', label: 'Diterima Oleh (Receiver)', type: 'text', required: true, placeholder: 'Nama penerima...' },
-                { name: 'qty', label: 'Jumlah Datang', type: 'text', required: false, placeholder: 'Cth: 50 M3' }
+                { name: 'recv', label: 'Nama Penerima', type: 'text', required: true, placeholder: 'Nama penerima...' },
+                { name: 'receivedDate', label: 'Waktu Diterima', type: 'datetime', required: true },
+                { name: 'doPhoto', label: 'Foto/Video', type: 'file', required: false },
+                { name: 'notes', label: 'Catatan', type: 'textarea', required: false, placeholder: 'Catatan penerimaan barang...' },
+                { name: 'materialCondition', label: 'Kondisi Barang Pesanan (Kualitas, Spek, Jumlah)', type: 'material_condition', required: true }
             ];
         case 'evaluation':
             return [
@@ -536,7 +539,7 @@ export default function EditItemModal({ isOpen, onClose, item, onSubmit }) {
                                 }
 
                                 return (
-                                    <div key={field.name} className={`${field.type === 'textarea' || field.type === 'multiselect' || field.type === 'multi_bill' ? 'col-span-full' : ''}`}>
+                                    <div key={field.name} className={`${field.type === 'textarea' || field.type === 'multiselect' || field.type === 'multi_bill' || field.type === 'material_condition' || field.type === 'file' ? 'col-span-full' : ''}`}>
                                         <label className={labelClass}>{field.label}{isFieldRequired && <span className="text-red-500 ml-1">*</span>}</label>
 
                                         {field.type === 'text' && (
@@ -698,6 +701,117 @@ export default function EditItemModal({ isOpen, onClose, item, onSubmit }) {
                                                 )}
                                             </div>
                                         )}
+
+                                        {field.type === 'datetime' && (
+                                            <input
+                                                type="datetime-local"
+                                                className={inputClass}
+                                                value={phaseData[field.name] || ''}
+                                                onChange={e => handlePhaseDataChange(field.name, e.target.value)}
+                                            />
+                                        )}
+                                        {field.type === 'textarea' && (
+                                            <textarea
+                                                rows={3}
+                                                className={inputClass}
+                                                placeholder={field.placeholder}
+                                                value={phaseData[field.name] || ''}
+                                                onChange={e => handlePhaseDataChange(field.name, e.target.value)}
+                                            />
+                                        )}
+                                        {field.type === 'file' && (
+                                            <div>
+                                                <input
+                                                    type="file"
+                                                    accept="image/*,video/*"
+                                                    className={`${inputClass} file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-primary/10 file:text-primary file:font-medium file:text-sm file:cursor-pointer hover:file:bg-primary/20`}
+                                                    onChange={e => {
+                                                        const file = e.target.files[0];
+                                                        if (file) {
+                                                            handlePhaseDataChange(field.name, file.name);
+                                                            const reader = new FileReader();
+                                                            reader.onloadend = () => handlePhaseDataChange(`${field.name}_data`, reader.result);
+                                                            reader.readAsDataURL(file);
+                                                        }
+                                                    }}
+                                                />
+                                                {phaseData[`${field.name}_data`] && (
+                                                    <div className="mt-2 p-2 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                                                        {phaseData[`${field.name}_data`].startsWith('data:video') ? (
+                                                            <video src={phaseData[`${field.name}_data`]} controls className="max-h-32 rounded" />
+                                                        ) : (
+                                                            <img src={phaseData[`${field.name}_data`]} alt="Preview" className="max-h-32 rounded object-contain" />
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                        {field.type === 'material_condition' && (() => {
+                                            const materialRows = (() => {
+                                                if (!item) return [];
+                                                const rows = [];
+                                                if (item.title) {
+                                                    rows.push({ key: 'main', label: item.title, detail: [item.vol, item.qty].filter(Boolean).join(' \u2022 ') });
+                                                }
+                                                if (rows.length === 0) {
+                                                    rows.push({ key: 'item', label: item.code || 'Item Pesanan', detail: '' });
+                                                }
+                                                return rows;
+                                            })();
+                                            const conditions = phaseData[field.name] || {};
+
+                                            if (materialRows.length === 0) {
+                                                return (
+                                                    <div className="text-sm text-slate-500 italic bg-slate-50 dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+                                                        Tidak ada data material untuk diperiksa.
+                                                    </div>
+                                                );
+                                            }
+
+                                            return (
+                                                <div className="space-y-2">
+                                                    {materialRows.map((row) => (
+                                                        <div key={row.key} className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${conditions[row.key] === 'sesuai' ? 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800' :
+                                                                conditions[row.key] === 'tidak_sesuai' ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800' :
+                                                                    'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
+                                                            }`}>
+                                                            <div className="flex-1 min-w-0 mr-3">
+                                                                <div className="text-sm font-medium text-slate-900 dark:text-white truncate">{row.label}</div>
+                                                                {row.detail && <div className="text-[11px] text-slate-500 truncate">{row.detail}</div>}
+                                                            </div>
+                                                            <div className="flex items-center gap-2 shrink-0">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        const updated = { ...conditions, [row.key]: 'sesuai' };
+                                                                        handlePhaseDataChange(field.name, updated);
+                                                                    }}
+                                                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${conditions[row.key] === 'sesuai'
+                                                                            ? 'bg-green-500 text-white border-green-600 shadow-sm'
+                                                                            : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:border-green-400 hover:text-green-600'
+                                                                        }`}
+                                                                >
+                                                                    <span className="material-icons-round text-[14px] align-middle mr-0.5">check_circle</span> Sesuai
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        const updated = { ...conditions, [row.key]: 'tidak_sesuai' };
+                                                                        handlePhaseDataChange(field.name, updated);
+                                                                    }}
+                                                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${conditions[row.key] === 'tidak_sesuai'
+                                                                            ? 'bg-red-500 text-white border-red-600 shadow-sm'
+                                                                            : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:border-red-400 hover:text-red-600'
+                                                                        }`}
+                                                                >
+                                                                    <span className="material-icons-round text-[14px] align-middle mr-0.5">cancel</span> Tidak Sesuai
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            );
+                                        })()}
 
                                         {/* Multi Bill Builder */}
                                         {field.type === 'multi_bill' && (
