@@ -21,6 +21,15 @@ export default function Subkontraktor() {
     const [selectedSubcon, setSelectedSubcon] = useState(subcons[0]);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [activeTab, setActiveTab] = useState('catalog');
+    const [transactions, setTransactions] = useState([]);
+
+    useEffect(() => {
+        const savedTrxs = localStorage.getItem('transactions');
+        if (savedTrxs) {
+            setTransactions(JSON.parse(savedTrxs));
+        }
+    }, []);
+
     const [subconListTab, setSubconListTab] = useState('directory'); // 'directory' | 'registration'
     const [isAddSupplyModalOpen, setIsAddSupplyModalOpen] = useState(false);
     const [isAddSubconModalOpen, setIsAddSubconModalOpen] = useState(false);
@@ -577,8 +586,48 @@ export default function Subkontraktor() {
                                             Ringkasan Transaksi per Project Manager
                                         </h4>
                                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                            {(selectedSubcon.managers || []).length > 0 ? (
-                                                (selectedSubcon.managers || []).map((mgr, index) => (
+                                            {(() => {
+                                                if (!selectedSubcon) return null;
+                                                // Filter transactions where payee matches the subcon name
+                                                const subconTrxs = transactions.filter(t => t.payee?.toLowerCase() === selectedSubcon.name.toLowerCase() && t.type === 'out');
+
+                                                if (subconTrxs.length === 0) {
+                                                    return (
+                                                        <div className="col-span-3 text-center py-4 text-slate-500 dark:text-slate-400 text-sm italic">
+                                                            Belum ada transaksi dengan Project Manager manapun.
+                                                        </div>
+                                                    );
+                                                }
+
+                                                // Group by PM
+                                                const pmStats = {};
+                                                let totalSubconSpend = 0;
+                                                subconTrxs.forEach(t => {
+                                                    const pmName = t.createdBy || 'Sistem';
+                                                    if (!pmStats[pmName]) pmStats[pmName] = 0;
+                                                    pmStats[pmName] += t.amount || 0;
+                                                    totalSubconSpend += t.amount || 0;
+                                                });
+
+                                                // Convert to array and sort by amount desc
+                                                const pmArray = Object.entries(pmStats)
+                                                    .map(([name, amount], index) => {
+                                                        const isTop = amount === Math.max(...Object.values(pmStats));
+                                                        const percent = totalSubconSpend > 0 ? Math.round((amount / totalSubconSpend) * 100) : 0;
+                                                        const colors = ['primary', 'green-500', 'orange-500', 'purple-500', 'teal-500'];
+
+                                                        return {
+                                                            name,
+                                                            amount,
+                                                            volume: new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount),
+                                                            percent,
+                                                            isTop,
+                                                            color: colors[index % colors.length]
+                                                        };
+                                                    })
+                                                    .sort((a, b) => b.amount - a.amount);
+
+                                                return pmArray.map((mgr, index) => (
                                                     <div key={index} className="bg-white dark:bg-surface-dark border border-slate-200 dark:border-slate-700/50 rounded-lg p-3 flex flex-col shadow-sm">
                                                         <div className="flex justify-between items-start mb-1">
                                                             <span className="text-sm font-medium text-slate-900 dark:text-white">{mgr.name}</span>
@@ -589,17 +638,13 @@ export default function Subkontraktor() {
                                                         <div className="mt-auto">
                                                             <div className="text-xs text-slate-500">Total Volume</div>
                                                             <div className="font-mono text-sm font-bold text-slate-700 dark:text-slate-200">{mgr.volume}</div>
-                                                            <div className="w-full bg-slate-200 dark:bg-slate-700 h-1 mt-2 rounded-full overflow-hidden">
-                                                                <div className={`bg-${mgr.color || 'primary'} h-full`} style={{ width: `${mgr.percent}%` }}></div>
+                                                            <div className="w-full bg-slate-200 dark:bg-slate-700 h-1 mt-2 rounded-full overflow-hidden flex">
+                                                                <div className={`bg-${mgr.color} h-full`} style={{ width: `${mgr.percent}%` }}></div>
                                                             </div>
                                                         </div>
                                                     </div>
-                                                ))
-                                            ) : (
-                                                <div className="col-span-3 text-center py-4 text-slate-500 dark:text-slate-400 text-sm italic">
-                                                    Belum ada transaksi dengan Project Manager manapun.
-                                                </div>
-                                            )}
+                                                ));
+                                            })()}
                                         </div>
                                     </div>
 
