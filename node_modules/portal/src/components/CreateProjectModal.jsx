@@ -186,7 +186,7 @@ export default function CreateProjectModal({ isOpen, onClose }) {
                         <div className="space-y-4">
                             <div className="flex items-center gap-2 mb-2">
                                 <span className="h-6 w-1 bg-primary rounded-full"></span>
-                                <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Nama Klien & Operator</h3>
+                                <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Nama Klien</h3>
                             </div>
 
                             {/* Cari Klien */}
